@@ -1,0 +1,30 @@
+[package]
+name = "latticecolor"
+version = "0.1.0"
+description = "ColorMatch Mini — pixel color picker and palette generator"
+authors = []
+edition = "2021"
+
+[lib]
+name = "latticecolor_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-store = "2"
+xcap = "0.0.14"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

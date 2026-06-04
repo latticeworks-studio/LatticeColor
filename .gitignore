@@ -1,0 +1,17 @@
+# Node
+node_modules/
+dist/
+
+# Rust / Cargo
+src-tauri/target/
+
+# Tauri generated schemas (regenerated on first build)
+src-tauri/gen/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/settings.json
