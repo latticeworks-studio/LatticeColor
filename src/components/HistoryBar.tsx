@@ -1,7 +1,9 @@
 import { useColorStore } from "../store";
+import { useSwatchMenu } from "../ContextMenuProvider";
 
 export default function HistoryBar() {
   const { history, setFromHistory } = useColorStore();
+  const { open } = useSwatchMenu();
 
   if (history.length === 0) return null;
 
@@ -18,6 +20,7 @@ export default function HistoryBar() {
             style={{ backgroundColor: hex }}
             title={hex}
             onClick={() => setFromHistory(hex)}
+            onContextMenu={(e) => { e.preventDefault(); open(hex, e.clientX, e.clientY); }}
           />
         ))}
       </div>

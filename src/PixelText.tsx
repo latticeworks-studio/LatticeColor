@@ -88,7 +88,7 @@ interface Props {
 export default function PixelText({
   text,
   pixelSize = 3,
-  color = "#52D7C6",
+  color = "#C4897E",
   animated = false,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);

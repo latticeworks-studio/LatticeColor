@@ -10,16 +10,25 @@ import ColorReadout from "./components/ColorReadout";
 import PaletteSection from "./components/PaletteSection";
 import HistoryBar from "./components/HistoryBar";
 import EyedropperOverlay from "./Overlay";
+import { ContextMenuProvider } from "./ContextMenuProvider";
+import AboutModal from "./components/AboutModal";
+import Tooltip from "./components/Tooltip";
 
 const PANEL_W = 380;
-const PANEL_H = 580;
+const PANEL_H = 380;
 
 function EyedropperIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9.5 1.5l3 3-7 7-3 .5.5-3z" />
-      <path d="M7.5 3.5l3 3" />
-      <circle cx="2.5" cy="11.5" r="1" fill="currentColor" stroke="none" />
+      {/* Color sample target — round head distinguishes it from a pencil */}
+      <circle cx="11" cy="3" r="1.8" />
+      {/* Thick tube body */}
+      <path d="M9.8 4.2 L5 9" strokeWidth="2.4" />
+      {/* Collar then narrow nozzle */}
+      <path d="M5 9 L3.5 10.5" />
+      <path d="M3.5 10.5 L2 12.5" strokeWidth="0.9" />
+      {/* Drop at tip */}
+      <circle cx="1.6" cy="12.8" r="0.9" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -28,6 +37,7 @@ export default function App() {
   const { pickedColor, setPickedColor } = useColorStore();
   const [screenData, setScreenData] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   // Listen for global shortcut trigger from Rust
   useEffect(() => {
@@ -84,18 +94,23 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-vscode-bg overflow-hidden">
+    <ContextMenuProvider>
+    <div
+      className="flex flex-col h-full bg-vscode-bg overflow-hidden"
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {/* Title bar */}
       <div
         data-tauri-drag-region
         className="flex items-center justify-between px-3 py-2 bg-vscode-sidebar border-b border-vscode-border select-none flex-shrink-0"
       >
-        <div data-tauri-drag-region>
-          <PixelText text="LATTICECOLOR" pixelSize={2} color="#52D7C6" />
+        {/* pointer-events-none so clicks fall through to the drag region */}
+        <div className="pointer-events-none">
+          <PixelText text="LATTICECOLOR" pixelSize={2} color="#C4897E" />
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5 pointer-events-none">
             {["Ctrl", "Shift", "C"].map((k) => (
               <span
                 key={k}
@@ -117,6 +132,27 @@ export default function App() {
           >
             <EyedropperIcon />
           </button>
+          <Tooltip title="About LatticeColor" body="Version info, credits and links.">
+            <button
+              onClick={() => setAboutOpen(true)}
+              className="text-vscode-muted hover:text-vscode-text transition-colors"
+            >
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+                <circle cx="6.5" cy="6.5" r="5.5" />
+                <path d="M6.5 5.5v4" />
+                <circle cx="6.5" cy="3.5" r="0.6" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
+          </Tooltip>
+          <button
+            onClick={() => getCurrentWebviewWindow().hide()}
+            className="text-vscode-muted hover:text-vscode-red transition-colors ml-2"
+            title="Hide"
+          >
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+              <path d="M1 1l9 9M10 1L1 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -126,6 +162,9 @@ export default function App() {
         <PaletteSection baseHex={pickedColor} />
         <HistoryBar />
       </div>
+
+      {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
     </div>
+    </ContextMenuProvider>
   );
 }

@@ -8,7 +8,7 @@ interface ColorState {
 }
 
 export const useColorStore = create<ColorState>((set, get) => ({
-  pickedColor: "#52D7C6",
+  pickedColor: "#C4897E",
   history: [],
 
   setPickedColor: (hex) => {

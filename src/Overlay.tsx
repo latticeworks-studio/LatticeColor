@@ -86,12 +86,12 @@ export default function EyedropperOverlay({ screenData, onPick, onCancel }: Prop
     // Center pixel highlight
     const cx = Math.floor(MAG_SRC_HALF) * cellSize;
     const cy = Math.floor(MAG_SRC_HALF) * cellSize;
-    ctx.strokeStyle = "#52D7C6";
+    ctx.strokeStyle = "#C4897E";
     ctx.lineWidth = 1.5;
     ctx.strokeRect(cx, cy, cellSize, cellSize);
 
     // Ring
-    ctx.strokeStyle = "#52D7C6";
+    ctx.strokeStyle = "#C4897E";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(MAG_RADIUS, MAG_RADIUS, MAG_RADIUS - 1, 0, Math.PI * 2);
@@ -159,11 +159,11 @@ export default function EyedropperOverlay({ screenData, onPick, onCancel }: Prop
             style={{ left: pos.x - 10, top: pos.y - 10 }}
           >
             <svg width="20" height="20" viewBox="0 0 20 20">
-              <line x1="10" y1="0" x2="10" y2="7" stroke="#52D7C6" strokeWidth="1.5" />
-              <line x1="10" y1="13" x2="10" y2="20" stroke="#52D7C6" strokeWidth="1.5" />
-              <line x1="0" y1="10" x2="7" y2="10" stroke="#52D7C6" strokeWidth="1.5" />
-              <line x1="13" y1="10" x2="20" y2="10" stroke="#52D7C6" strokeWidth="1.5" />
-              <rect x="9" y="9" width="2" height="2" fill="#52D7C6" />
+              <line x1="10" y1="0" x2="10" y2="7" stroke="#C4897E" strokeWidth="1.5" />
+              <line x1="10" y1="13" x2="10" y2="20" stroke="#C4897E" strokeWidth="1.5" />
+              <line x1="0" y1="10" x2="7" y2="10" stroke="#C4897E" strokeWidth="1.5" />
+              <line x1="13" y1="10" x2="20" y2="10" stroke="#C4897E" strokeWidth="1.5" />
+              <rect x="9" y="9" width="2" height="2" fill="#C4897E" />
             </svg>
           </div>
 

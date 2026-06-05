@@ -48,12 +48,17 @@ fn capture_screen(app: AppHandle) -> Result<String, String> {
     Ok(b64)
 }
 
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    open::that(&url).map_err(|e| e.to_string())
+}
+
 // ── App setup ─────────────────────────────────────────────────────────────────
 
 pub fn run() {
     tauri::Builder::default()
         .manage(ScreenData(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![capture_screen])
+        .invoke_handler(tauri::generate_handler![capture_screen, open_url])
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
@@ -65,9 +70,10 @@ pub fn run() {
                 Code::KeyC,
             );
             app.global_shortcut().on_shortcut(shortcut, move |_app, _sh, _event| {
+                // Just emit — don't show/focus first, that causes a visible flash
+                // before capture_screen hides the window again.
+                // The webview receives events even while hidden.
                 if let Some(win) = handle.get_webview_window("main") {
-                    let _ = win.show();
-                    let _ = win.set_focus();
                     let _ = win.emit("activate-eyedropper", ());
                 }
             })?;

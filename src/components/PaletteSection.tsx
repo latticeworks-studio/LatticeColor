@@ -9,8 +9,37 @@ import {
   applyVariant,
 } from "../colorEngine";
 import { useColorStore } from "../store";
+import { useSwatchMenu } from "../ContextMenuProvider";
+import Tooltip from "./Tooltip";
 
 const PALETTE_TYPES: PaletteType[] = ["complementary", "analogous", "triadic", "tetradic", "monochrome", "material"];
+
+const PALETTE_TIPS: Record<PaletteType, { title: string; body: string }> = {
+  complementary: {
+    title: "Complementary",
+    body: "The colour directly opposite on the wheel (+180°). Maximum contrast — great for bold, high-impact pairings.",
+  },
+  analogous: {
+    title: "Analogous",
+    body: "Neighbours on the wheel (±15°, ±30°). Natural and harmonious — like the colours in a sunset or forest.",
+  },
+  triadic: {
+    title: "Triadic",
+    body: "Three colours evenly spaced (+120°, +240°). Vibrant yet balanced — pick one dominant, two as accents.",
+  },
+  tetradic: {
+    title: "Tetradic",
+    body: "Four colours at 90° intervals forming a rectangle. Rich and complex — works best with one hue leading.",
+  },
+  monochrome: {
+    title: "Monochromatic",
+    body: "Same hue, five lightness steps. Refined and cohesive — easy to layer without ever clashing.",
+  },
+  material: {
+    title: "Material Tonal",
+    body: "Material Design's 50–900 tonal scale. Ten steps of one hue for building complete, accessible UI systems.",
+  },
+};
 const VARIANTS: VariantType[] = ["darker", "lighter", "muted", "vibrant", "random"];
 
 interface SwatchProps {
@@ -21,6 +50,7 @@ interface SwatchProps {
 }
 
 function Swatch({ hex, label, size = "md", onClick }: SwatchProps) {
+  const { open } = useSwatchMenu();
   const dim = size === "sm" ? "w-7 h-7" : "w-8 h-8";
   return (
     <div className="flex flex-col items-center gap-0.5">
@@ -28,6 +58,7 @@ function Swatch({ hex, label, size = "md", onClick }: SwatchProps) {
         className={`${dim} rounded-sm border border-vscode-border hover:scale-110 transition-transform flex-shrink-0`}
         style={{ backgroundColor: hex }}
         onClick={onClick}
+        onContextMenu={(e) => { e.preventDefault(); open(hex, e.clientX, e.clientY); }}
         title={hex}
       />
       {label && (
@@ -55,17 +86,18 @@ export default function PaletteSection({ baseHex }: Props) {
       {/* Palette type tabs */}
       <div className="flex items-center border-b border-vscode-border overflow-x-auto">
         {PALETTE_TYPES.map((type) => (
-          <button
-            key={type}
-            onClick={() => setPaletteType(type)}
-            className={`px-3 py-1.5 text-[10px] tracking-wide flex-shrink-0 transition-colors border-b-2 ${
-              paletteType === type
-                ? "text-vscode-accent border-vscode-accent"
-                : "text-vscode-muted border-transparent hover:text-vscode-text"
-            }`}
-          >
-            {PALETTE_LABELS[type]}
-          </button>
+          <Tooltip key={type} title={PALETTE_TIPS[type].title} body={PALETTE_TIPS[type].body}>
+            <button
+              onClick={() => setPaletteType(type)}
+              className={`px-3 py-1.5 text-[10px] tracking-wide flex-shrink-0 transition-colors border-b-2 ${
+                paletteType === type
+                  ? "text-vscode-accent border-vscode-accent"
+                  : "text-vscode-muted border-transparent hover:text-vscode-text"
+              }`}
+            >
+              {PALETTE_LABELS[type]}
+            </button>
+          </Tooltip>
         ))}
       </div>
 

@@ -10,9 +10,59 @@
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <style>
+      /* Critical: prevent white flash before JS loads */
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body, #root { height: 100%; background: #1e1e1e; color: #cccccc; }
+
+      /* Splash screen — visible until React mounts */
+      #splash {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        font-family: 'JetBrains Mono', Consolas, monospace;
+        user-select: none;
+      }
+      #splash-title {
+        color: #C4897E;
+        font-size: 10px;
+        letter-spacing: 0.4em;
+        text-transform: uppercase;
+      }
+      #splash-dots {
+        display: flex;
+        gap: 6px;
+      }
+      #splash-dots span {
+        display: block;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: #C4897E;
+        animation: lc-pulse 1.2s ease-in-out infinite;
+        opacity: 0.2;
+      }
+      #splash-dots span:nth-child(2) { animation-delay: 0.2s; }
+      #splash-dots span:nth-child(3) { animation-delay: 0.4s; }
+      @keyframes lc-pulse {
+        0%, 100% { opacity: 0.2; transform: scale(0.75); }
+        50%       { opacity: 1;   transform: scale(1); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Replaced by React on first render -->
+      <div id="splash">
+        <div id="splash-title">LatticeColor</div>
+        <div id="splash-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
