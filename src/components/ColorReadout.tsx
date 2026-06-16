@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { hexToRgb, rgbToHsl, rgbToOklch, formatOklch } from "../colorEngine";
+import { hexToRgb, rgbToHsl, rgbToOklch, formatOklch, nearestColorName } from "../colorEngine";
 import { useSwatchMenu } from "../ContextMenuProvider";
 import { useColorStore } from "../store";
 import ColorPicker from "./ColorPicker";
@@ -49,29 +49,39 @@ export default function ColorReadout({ hex }: Props) {
   const rgb = hexToRgb(hex);
   const hsl = rgbToHsl(rgb);
   const oklch = rgbToOklch(rgb);
+  const colorName = nearestColorName(hex);
 
   const hexDisplay = hex.toUpperCase();
   const rgbDisplay = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
   const hslDisplay = `${hsl.h}°, ${hsl.s}%, ${hsl.l}%`;
   const oklchDisplay = formatOklch(oklch);
 
+  // CSS-formatted copy values
+  const rgbCopy = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+  const hslCopy = `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
+
   return (
     <div className="flex gap-3 px-3 py-3 border-b border-vscode-border">
-      {/* Large swatch — click opens custom picker, right-click opens context menu */}
-      <div
-        ref={swatchRef}
-        className="w-16 h-16 rounded flex-shrink-0 border border-vscode-border cursor-pointer hover:opacity-90 transition-opacity"
-        style={{ backgroundColor: hex }}
-        onClick={() => setPickerOpen((v) => !v)}
-        onContextMenu={(e) => { e.preventDefault(); open(hex, e.clientX, e.clientY); }}
-        title="Click to open colour picker"
-      />
+      {/* Large swatch */}
+      <div className="flex flex-col items-center gap-1 flex-shrink-0">
+        <div
+          ref={swatchRef}
+          className="w-16 h-16 rounded border border-vscode-border cursor-pointer hover:opacity-90 transition-opacity"
+          style={{ backgroundColor: hex }}
+          onClick={() => setPickerOpen((v) => !v)}
+          onContextMenu={(e) => { e.preventDefault(); open(hex, e.clientX, e.clientY); }}
+          title="Click to open colour picker"
+        />
+        <span className="text-[9px] text-vscode-muted leading-none truncate w-16 text-center">
+          {colorName}
+        </span>
+      </div>
 
       {/* Readout rows */}
       <div className="flex-1 flex flex-col justify-center -ml-3">
         <ReadoutRow label="Hex"   value={hexDisplay}   copyValue={hexDisplay} />
-        <ReadoutRow label="RGB"   value={rgbDisplay}   copyValue={rgbDisplay} />
-        <ReadoutRow label="HSL"   value={hslDisplay}   copyValue={hslDisplay} />
+        <ReadoutRow label="RGB"   value={rgbDisplay}   copyValue={rgbCopy} />
+        <ReadoutRow label="HSL"   value={hslDisplay}   copyValue={hslCopy} />
         <ReadoutRow label="OKLCH" value={oklchDisplay} copyValue={oklchDisplay} />
       </div>
 

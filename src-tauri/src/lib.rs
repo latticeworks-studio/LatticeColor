@@ -10,14 +10,26 @@ pub struct ScreenData(pub Mutex<Option<String>>);
 
 // ── Screen capture ────────────────────────────────────────────────────────────
 
-fn capture_jpeg_base64() -> Result<String, String> {
+fn capture_jpeg_base64(cursor_x: f64, cursor_y: f64) -> Result<String, String> {
     use base64::{engine::general_purpose, Engine as _};
     use image::codecs::jpeg::JpegEncoder;
     use std::io::Cursor;
     use xcap::Monitor;
 
     let monitors = Monitor::all().map_err(|e| e.to_string())?;
-    let monitor = monitors.into_iter().next().ok_or("No monitor found")?;
+
+    // Find the monitor the cursor is on; fall back to the first monitor.
+    let monitor = monitors
+        .iter()
+        .find(|m| {
+            let mx = m.x() as f64;
+            let my = m.y() as f64;
+            cursor_x >= mx && cursor_x < mx + m.width() as f64
+                && cursor_y >= my && cursor_y < my + m.height() as f64
+        })
+        .or_else(|| monitors.first())
+        .ok_or("No monitor found")?;
+
     let img = monitor.capture_image().map_err(|e| e.to_string())?;
     let rgb = image::DynamicImage::ImageRgba8(img).to_rgb8();
 
@@ -31,17 +43,16 @@ fn capture_jpeg_base64() -> Result<String, String> {
 
 // ── Tauri commands ────────────────────────────────────────────────────────────
 
-// Called by the frontend just before it renders the eyedropper overlay.
-// Hides the main window, waits for it to disappear, captures the screen,
-// then returns the base64 JPEG. The frontend then goes fullscreen and shows it.
+// Hides the window, captures the monitor the cursor is currently on, re-shows.
 #[tauri::command]
 fn capture_screen(app: AppHandle) -> Result<String, String> {
+    // Sample cursor position before hiding so we know which monitor to capture.
+    let cursor = app.cursor_position().unwrap_or_default();
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.hide();
     }
     std::thread::sleep(std::time::Duration::from_millis(150));
-    let b64 = capture_jpeg_base64()?;
-    // Re-show so the frontend can receive the return value and go fullscreen
+    let b64 = capture_jpeg_base64(cursor.x, cursor.y)?;
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.show();
     }

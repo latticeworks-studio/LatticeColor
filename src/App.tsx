@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { LogicalSize } from "@tauri-apps/api/dpi";
-import { useColorStore } from "./store";
+import { LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
+import { useColorStore, getDiskStore } from "./store";
 import { rgbToHex } from "./colorEngine";
 import PixelText from "./PixelText";
 import ColorReadout from "./components/ColorReadout";
@@ -34,10 +34,35 @@ function EyedropperIcon() {
 }
 
 export default function App() {
-  const { pickedColor, setPickedColor } = useColorStore();
+  const { pickedColor, setPickedColor, hydrate } = useColorStore();
   const [screenData, setScreenData] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+
+  // Hydrate persisted color store and restore window position on first load
+  useEffect(() => {
+    void (async () => {
+      await hydrate();
+      const s = await getDiskStore();
+      const x = await s.get<number>("winX");
+      const y = await s.get<number>("winY");
+      if (x != null && y != null) {
+        await getCurrentWebviewWindow().setPosition(new PhysicalPosition(x, y));
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist window position whenever the window is moved
+  useEffect(() => {
+    const win = getCurrentWebviewWindow();
+    const promise = win.onMoved(async ({ payload }) => {
+      const s = await getDiskStore();
+      await s.set("winX", payload.x);
+      await s.set("winY", payload.y);
+      await s.save();
+    });
+    return () => { promise.then((fn) => fn()); };
+  }, []);
 
   // Listen for global shortcut trigger from Rust
   useEffect(() => {

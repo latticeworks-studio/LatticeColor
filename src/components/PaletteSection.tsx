@@ -42,6 +42,23 @@ const PALETTE_TIPS: Record<PaletteType, { title: string; body: string }> = {
 };
 const VARIANTS: VariantType[] = ["darker", "lighter", "muted", "vibrant", "random"];
 
+function useCopyCSS(palette: string[], paletteType: PaletteType) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    const isMaterial = paletteType === "material";
+    const vars = palette
+      .map((hex, i) => {
+        const name = isMaterial ? `--color-${MATERIAL_STEPS[i]}` : `--color-${i + 1}`;
+        return `${name}: ${hex};`;
+      })
+      .join("\n");
+    await navigator.clipboard.writeText(vars);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
+  };
+  return { copied, copy };
+}
+
 interface SwatchProps {
   hex: string;
   label?: string;
@@ -80,6 +97,7 @@ export default function PaletteSection({ baseHex }: Props) {
   const palette = generatePalette(baseHex, paletteType);
   const variantSwatches = activeVariant ? applyVariant(baseHex, activeVariant) : null;
   const isMaterial = paletteType === "material";
+  const { copied: cssCopied, copy: copyCSS } = useCopyCSS(palette, paletteType);
 
   return (
     <div className="flex flex-col gap-0 border-b border-vscode-border">
@@ -114,7 +132,7 @@ export default function PaletteSection({ baseHex }: Props) {
         ))}
       </div>
 
-      {/* Variant buttons */}
+      {/* Variant buttons + CSS export */}
       <div className="flex items-center gap-1 px-3 pb-2 border-t border-vscode-border pt-2">
         {VARIANTS.map((v) => (
           <button
@@ -129,6 +147,13 @@ export default function PaletteSection({ baseHex }: Props) {
             {VARIANT_LABELS[v]}
           </button>
         ))}
+        <button
+          onClick={() => void copyCSS()}
+          className="ml-auto text-[10px] px-2 py-0.5 rounded border border-vscode-border text-vscode-muted hover:border-vscode-accent hover:text-vscode-accent transition-colors"
+          title="Copy palette as CSS custom properties"
+        >
+          {cssCopied ? "✓" : "CSS"}
+        </button>
       </div>
 
       {/* Variant swatches */}

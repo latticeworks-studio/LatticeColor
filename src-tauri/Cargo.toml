@@ -1,6 +1,6 @@
 [package]
 name = "latticecolor"
-version = "0.2.0"
+version = "1.0.0"
 description = "ColorMatch Mini — pixel color picker and palette generator"
 authors = []
 edition = "2021"
