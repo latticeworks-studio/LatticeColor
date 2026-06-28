@@ -276,3 +276,19 @@ export function applyVariant(baseHex: string, variant: VariantType): string[] {
       return [baseHex];
   }
 }
+
+// ── Restricted palette (Palette Creator) ─────────────────────────────────────
+
+export type PaletteSize = 16 | 32 | 64 | 128 | 256;
+
+// Full hue sweep: N colours cycling through all 360° of hue, each at the root's
+// saturation and lightness. The palette covers the entire colour range but
+// maintains the same vibrance, mutedness, or darkness as the root colour.
+// Starting hue is the root's own hue so the first colour matches the root.
+export function generateRestrictedPalette(rootHex: string, count: PaletteSize): string[] {
+  const { h: rootH, s: rootS, l: rootL } = rgbToHsl(hexToRgb(rootHex));
+  return Array.from({ length: count }, (_, i) => {
+    const h = Math.round((rootH + (i / count) * 360) % 360);
+    return rgbToHex(hslToRgb({ h, s: rootS, l: rootL }));
+  });
+}

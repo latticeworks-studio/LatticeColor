@@ -163,11 +163,15 @@ export default function ColorPicker({ hex, anchorEl, onChange, onClose }: Props)
     };
   }, [anchorEl, onClose]);
 
-  // Position below the anchor, clamped to viewport
+  // Position below the anchor (or above if close to the bottom), clamped to viewport
   const aRect = anchorEl.getBoundingClientRect();
   const PW = 220;
+  const PICKER_H = 230;
   const left = Math.min(aRect.left, window.innerWidth - PW - 8);
-  const top = aRect.bottom + 6;
+  const spaceBelow = window.innerHeight - aRect.bottom;
+  const top = spaceBelow >= PICKER_H + 8
+    ? aRect.bottom + 6
+    : Math.max(8, aRect.top - PICKER_H - 6);
 
   const previewHex = hsvToHex(hue, sat, val);
 

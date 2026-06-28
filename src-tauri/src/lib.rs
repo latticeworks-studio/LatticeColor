@@ -64,12 +64,29 @@ fn open_url(url: String) -> Result<(), String> {
     open::that(&url).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn save_palette_png(app: AppHandle, base64_data: String, name: String) -> Result<String, String> {
+    use base64::{engine::general_purpose, Engine as _};
+    let bytes = general_purpose::STANDARD
+        .decode(&base64_data)
+        .map_err(|e| e.to_string())?;
+    let safe: String = name
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect();
+    let filename = format!("{}.png", if safe.is_empty() { "palette".to_string() } else { safe });
+    let dir = app.path().download_dir().map_err(|e| e.to_string())?;
+    let path = dir.join(&filename);
+    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 // ── App setup ─────────────────────────────────────────────────────────────────
 
 pub fn run() {
     tauri::Builder::default()
         .manage(ScreenData(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![capture_screen, open_url])
+        .invoke_handler(tauri::generate_handler![capture_screen, open_url, save_palette_png])
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {

@@ -4,6 +4,7 @@
     { "title": "Eyedropper",         "file": "eyedropper.md" },
     { "title": "Color Readout",      "file": "color-readout.md" },
     { "title": "Palette Tools",      "file": "palette-tools.md" },
+    { "title": "Palette Creator",    "file": "palette-creator.md" },
     { "title": "Keyboard Shortcuts", "file": "keyboard-shortcuts.md" }
   ]
 }

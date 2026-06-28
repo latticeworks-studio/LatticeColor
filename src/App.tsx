@@ -4,7 +4,8 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
 import { useColorStore, getDiskStore } from "./store";
-import { rgbToHex } from "./colorEngine";
+import { rgbToHex, generateRestrictedPalette } from "./colorEngine";
+import { usePaletteStore } from "./paletteStore";
 import PixelText from "./PixelText";
 import ColorReadout from "./components/ColorReadout";
 import PaletteSection from "./components/PaletteSection";
@@ -13,9 +14,11 @@ import EyedropperOverlay from "./Overlay";
 import { ContextMenuProvider } from "./ContextMenuProvider";
 import AboutModal from "./components/AboutModal";
 import Tooltip from "./components/Tooltip";
+import PaletteEditor from "./components/PaletteEditor";
 
 const PANEL_W = 380;
 const PANEL_H = 380;
+const PALETTE_H = 500;
 
 function EyedropperIcon() {
   return (
@@ -35,9 +38,11 @@ function EyedropperIcon() {
 
 export default function App() {
   const { pickedColor, setPickedColor, hydrate } = useColorStore();
+  const paletteStore = usePaletteStore();
   const [screenData, setScreenData] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [paletteMode, setPaletteMode] = useState(false);
 
   // Hydrate persisted color store and restore window position on first load
   useEffect(() => {
@@ -102,9 +107,23 @@ export default function App() {
     const win = getCurrentWebviewWindow();
     await win.setFullscreen(false);
     // Explicitly restore panel size in case setFullscreen(false) doesn't snap back
-    await win.setSize(new LogicalSize(PANEL_W, PANEL_H));
+    await win.setSize(new LogicalSize(PANEL_W, paletteMode ? PALETTE_H : PANEL_H));
     setScreenData(null);
     setCapturing(false);
+  };
+
+  const enterPaletteMode = async () => {
+    await paletteStore.hydratePalettes();
+    if (paletteStore.colors.length === 0) {
+      paletteStore.newPalette(generateRestrictedPalette(pickedColor, 16), 16);
+    }
+    setPaletteMode(true);
+    await getCurrentWebviewWindow().setSize(new LogicalSize(PANEL_W, PALETTE_H));
+  };
+
+  const exitPaletteMode = async () => {
+    setPaletteMode(false);
+    await getCurrentWebviewWindow().setSize(new LogicalSize(PANEL_W, PANEL_H));
   };
 
   // Render fullscreen overlay while eyedropper is active
@@ -115,6 +134,15 @@ export default function App() {
         onPick={handlePick}
         onCancel={exitEyedropper}
       />
+    );
+  }
+
+  // Render palette editor (full panel takeover)
+  if (paletteMode) {
+    return (
+      <ContextMenuProvider>
+        <PaletteEditor onClose={() => void exitPaletteMode()} />
+      </ContextMenuProvider>
     );
   }
 
@@ -135,16 +163,18 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-0.5 pointer-events-none">
-            {["Ctrl", "Shift", "C"].map((k) => (
-              <span
-                key={k}
-                className="text-[10px] text-vscode-muted border border-vscode-border rounded px-1 py-px leading-none"
-              >
-                {k}
-              </span>
-            ))}
-          </div>
+          <button
+            onClick={() => void enterPaletteMode()}
+            className="text-vscode-muted hover:text-vscode-accent transition-colors"
+            title="Palette Creator"
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+              <rect x="1" y="1" width="4.5" height="4.5" rx="0.5" />
+              <rect x="7.5" y="1" width="4.5" height="4.5" rx="0.5" />
+              <rect x="1" y="7.5" width="4.5" height="4.5" rx="0.5" />
+              <rect x="7.5" y="7.5" width="4.5" height="4.5" rx="0.5" />
+            </svg>
+          </button>
           <button
             onClick={() => void startEyedropper()}
             disabled={capturing}
