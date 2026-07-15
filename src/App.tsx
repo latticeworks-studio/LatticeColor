@@ -1,20 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
 import { useColorStore, getDiskStore } from "./store";
 import { rgbToHex, generateRestrictedPalette } from "./colorEngine";
+import type { PaletteSize } from "./colorEngine";
 import { usePaletteStore } from "./paletteStore";
 import PixelText from "./PixelText";
 import ColorReadout from "./components/ColorReadout";
 import PaletteSection from "./components/PaletteSection";
 import HistoryBar from "./components/HistoryBar";
 import EyedropperOverlay from "./Overlay";
+import AreaOverlay from "./AreaOverlay";
 import { ContextMenuProvider } from "./ContextMenuProvider";
 import AboutModal from "./components/AboutModal";
 import Tooltip from "./components/Tooltip";
 import PaletteEditor from "./components/PaletteEditor";
+
+const AREA_SIZES: PaletteSize[] = [16, 32, 64, 128, 256, 512];
 
 const PANEL_W = 380;
 const PANEL_H = 380;
@@ -43,6 +47,11 @@ export default function App() {
   const [capturing, setCapturing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [paletteMode, setPaletteMode] = useState(false);
+  const [showAreaMenu, setShowAreaMenu] = useState(false);
+  const eyedropperModeRef = useRef<"point" | "area">("point");
+  const areaSizeRef = useRef<PaletteSize>(64);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggeredRef = useRef(false);
 
   // Hydrate persisted color store and restore window position on first load
   useEffect(() => {
@@ -112,6 +121,25 @@ export default function App() {
     setCapturing(false);
   };
 
+  const startAreaEyedropper = async (sz: PaletteSize) => {
+    setShowAreaMenu(false);
+    eyedropperModeRef.current = "area";
+    areaSizeRef.current = sz;
+    await startEyedropper();
+  };
+
+  const handleAreaPick = async (colors: string[], sz: PaletteSize) => {
+    const win = getCurrentWebviewWindow();
+    await win.setFullscreen(false);
+    await win.setSize(new LogicalSize(PANEL_W, PALETTE_H));
+    setScreenData(null);
+    setCapturing(false);
+    eyedropperModeRef.current = "point";
+    await paletteStore.hydratePalettes();
+    paletteStore.newPalette(colors, sz, true);
+    setPaletteMode(true);
+  };
+
   const enterPaletteMode = async () => {
     await paletteStore.hydratePalettes();
     if (paletteStore.colors.length === 0) {
@@ -128,6 +156,16 @@ export default function App() {
 
   // Render fullscreen overlay while eyedropper is active
   if (screenData) {
+    if (eyedropperModeRef.current === "area") {
+      return (
+        <AreaOverlay
+          screenData={screenData}
+          paletteSize={areaSizeRef.current}
+          onPick={(colors, sz) => void handleAreaPick(colors, sz)}
+          onCancel={exitEyedropper}
+        />
+      );
+    }
     return (
       <EyedropperOverlay
         screenData={screenData}
@@ -175,18 +213,68 @@ export default function App() {
               <rect x="7.5" y="7.5" width="4.5" height="4.5" rx="0.5" />
             </svg>
           </button>
-          <button
-            onClick={() => void startEyedropper()}
-            disabled={capturing}
-            className={`transition-colors ${
-              capturing
-                ? "text-vscode-accent animate-pulse"
-                : "text-vscode-muted hover:text-vscode-accent"
-            }`}
-            title="Pick color from screen (Ctrl+Shift+C)"
-          >
-            <EyedropperIcon />
-          </button>
+          {/* Eyedropper: short click = point pick, long press = area palette menu */}
+          <div className="relative">
+            <button
+              disabled={capturing}
+              onMouseDown={() => {
+                longPressTriggeredRef.current = false;
+                longPressTimerRef.current = setTimeout(() => {
+                  longPressTriggeredRef.current = true;
+                  setShowAreaMenu(true);
+                }, 500);
+              }}
+              onMouseUp={() => {
+                if (longPressTimerRef.current) {
+                  clearTimeout(longPressTimerRef.current);
+                  longPressTimerRef.current = null;
+                }
+              }}
+              onMouseLeave={() => {
+                if (longPressTimerRef.current) {
+                  clearTimeout(longPressTimerRef.current);
+                  longPressTimerRef.current = null;
+                }
+              }}
+              onClick={() => {
+                if (longPressTriggeredRef.current) return;
+                void startEyedropper();
+              }}
+              className={`transition-colors ${
+                capturing
+                  ? "text-vscode-accent animate-pulse"
+                  : "text-vscode-muted hover:text-vscode-accent"
+              }`}
+              title="Pick color (click) · Area palette (hold)"
+            >
+              <div className="flex flex-col items-center gap-[2px]">
+                <EyedropperIcon />
+                <svg width="6" height="3" viewBox="0 0 6 3" fill="none" className="opacity-50">
+                  <path d="M0.5 0.5L3 2.5L5.5 0.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </button>
+
+            {showAreaMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowAreaMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 bg-vscode-sidebar border border-vscode-border rounded shadow-lg z-50 p-2 min-w-[160px]">
+                  <div className="text-[10px] text-vscode-muted tracking-wide mb-1.5 px-1">Area Palette</div>
+                  <div className="flex flex-wrap gap-1">
+                    {AREA_SIZES.map((sz) => (
+                      <button
+                        key={sz}
+                        onClick={() => void startAreaEyedropper(sz)}
+                        className="text-[10px] px-2 py-1 rounded border border-vscode-border text-vscode-muted hover:border-vscode-accent hover:text-vscode-accent transition-colors"
+                      >
+                        {sz}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
           <Tooltip title="About LatticeColor" body="Version info, credits and links.">
             <button
               onClick={() => setAboutOpen(true)}

@@ -3,19 +3,19 @@ import { invoke } from "@tauri-apps/api/core";
 import { useColorStore } from "../store";
 import { usePaletteStore } from "../paletteStore";
 import type { PaletteSize } from "../paletteStore";
-import { generateRestrictedPalette } from "../colorEngine";
+import { generateRestrictedPalette, hexToRgb } from "../colorEngine";
 import { useSwatchMenu } from "../ContextMenuProvider";
 import ColorPicker from "./ColorPicker";
 import PixelText from "../PixelText";
 
-const SIZES: PaletteSize[] = [16, 32, 64, 128, 256];
+const SIZES: PaletteSize[] = [16, 32, 64, 128, 256, 512];
 
 function colsForSize(size: PaletteSize): number {
-  return size <= 16 ? 4 : size <= 64 ? 8 : 16;
+  return size <= 16 ? 4 : size <= 64 ? 8 : size <= 256 ? 16 : 32;
 }
 
 function swatchPxForCols(cols: number): number {
-  return cols <= 4 ? 40 : cols <= 8 ? 26 : 16;
+  return cols <= 4 ? 40 : cols <= 8 ? 26 : cols <= 16 ? 16 : 9;
 }
 
 interface Props {
@@ -25,7 +25,7 @@ interface Props {
 export default function PaletteEditor({ onClose }: Props) {
   const { pickedColor } = useColorStore();
   const {
-    colors, size, name, editId, saved,
+    colors, size, name, editId, saved, isSampled,
     setColors, setColor, setSize, setName,
     saveCurrentPalette, deleteSavedPalette, loadSavedPalette, newPalette,
   } = usePaletteStore();
@@ -37,7 +37,7 @@ export default function PaletteEditor({ onClose }: Props) {
   const [showSavedList, setShowSavedList] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(name);
-  const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [exportMsg, setExportMsg] = useState<{ text: string; path: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -96,16 +96,16 @@ export default function PaletteEditor({ onClose }: Props) {
 
   const handleExport = async () => {
     const canvas = document.createElement("canvas");
-    canvas.width = 256;
+    canvas.width = 512;
     canvas.height = 1;
     const ctx = canvas.getContext("2d")!;
     colors.forEach((hex, i) => {
       ctx.fillStyle = hex;
       ctx.fillRect(i, 0, 1, 1);
     });
-    if (colors.length < 256) {
+    if (colors.length < 512) {
       ctx.fillStyle = "#C3C3C3";
-      ctx.fillRect(colors.length, 0, 256 - colors.length, 1);
+      ctx.fillRect(colors.length, 0, 512 - colors.length, 1);
     }
     const base64 = canvas.toDataURL("image/png").split(",")[1];
     try {
@@ -114,10 +114,29 @@ export default function PaletteEditor({ onClose }: Props) {
         name: name || "palette",
       });
       const filename = path.split(/[/\\]/).pop() ?? path;
-      setExportMsg(`Saved: ${filename}`);
+      setExportMsg({ text: `Saved: ${filename}`, path });
       setTimeout(() => setExportMsg(null), 3000);
     } catch {
-      setExportMsg("Export failed");
+      setExportMsg({ text: "Export failed", path: "" });
+      setTimeout(() => setExportMsg(null), 2000);
+    }
+  };
+
+  const handleExportMd = async () => {
+    const rows = colors.map((hex) => {
+      const { r, g, b } = hexToRgb(hex);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="${hex}"/></svg>`;
+      const uri = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+      return `| ![](${uri}) | \`${hex}\` | \`rgb(${r}, ${g}, ${b})\` |`;
+    });
+    const md = [`# ${name}`, "", "| Swatch | Hex | RGB |", "|--------|-----|-----|", ...rows].join("\n");
+    try {
+      const path = await invoke<string>("save_palette_md", { content: md, name: name || "palette" });
+      const filename = path.split(/[/\\]/).pop() ?? path;
+      setExportMsg({ text: `Saved: ${filename}`, path });
+      setTimeout(() => setExportMsg(null), 3000);
+    } catch {
+      setExportMsg({ text: "Export failed", path: "" });
       setTimeout(() => setExportMsg(null), 2000);
     }
   };
@@ -234,9 +253,12 @@ export default function PaletteEditor({ onClose }: Props) {
         {SIZES.map((s) => (
           <button
             key={s}
-            onClick={() => handleSizeChange(s)}
+            onClick={() => !isSampled && handleSizeChange(s)}
+            disabled={isSampled}
             className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
-              size === s
+              isSampled
+                ? "border-vscode-border text-vscode-border cursor-not-allowed opacity-40"
+                : size === s
                 ? "border-vscode-accent text-vscode-accent"
                 : "border-vscode-border text-vscode-muted hover:border-vscode-muted hover:text-vscode-text"
             }`}
@@ -245,9 +267,14 @@ export default function PaletteEditor({ onClose }: Props) {
           </button>
         ))}
         <button
-          onClick={handleRegen}
-          className="ml-auto text-[10px] px-2 py-0.5 rounded border border-vscode-border text-vscode-muted hover:border-vscode-accent hover:text-vscode-accent transition-colors"
-          title={`Regenerate from ${pickedColor}`}
+          onClick={() => !isSampled && handleRegen()}
+          disabled={isSampled}
+          className={`ml-auto text-[10px] px-2 py-0.5 rounded border transition-colors ${
+            isSampled
+              ? "border-vscode-border text-vscode-border cursor-not-allowed opacity-40"
+              : "border-vscode-border text-vscode-muted hover:border-vscode-accent hover:text-vscode-accent"
+          }`}
+          title={isSampled ? "Save palette first to unlock Regen" : `Regenerate from ${pickedColor}`}
         >
           ↺ Regen
         </button>
@@ -285,9 +312,17 @@ export default function PaletteEditor({ onClose }: Props) {
       {/* Actions */}
       <div className="flex-shrink-0 border-t border-vscode-border">
         {exportMsg && (
-          <div className="px-3 py-1 text-[10px] text-vscode-muted bg-vscode-panel truncate border-b border-vscode-border">
-            {exportMsg}
-          </div>
+          <button
+            onClick={() => exportMsg.path && void invoke("reveal_in_explorer", { path: exportMsg.path })}
+            className={`w-full text-left px-3 py-1 text-[10px] bg-vscode-panel truncate border-b border-vscode-border transition-colors ${
+              exportMsg.path
+                ? "text-vscode-muted hover:text-vscode-accent cursor-pointer"
+                : "text-vscode-muted cursor-default"
+            }`}
+            title={exportMsg.path ? "Click to open in Explorer" : undefined}
+          >
+            {exportMsg.text}
+          </button>
         )}
         <div className="flex items-center gap-1.5 px-3 py-2">
           <button
@@ -310,13 +345,22 @@ export default function PaletteEditor({ onClose }: Props) {
           >
             {saving ? "Saving…" : "Save"}
           </button>
-          <button
-            onClick={() => void handleExport()}
-            className="ml-auto text-[10px] px-2 py-1 rounded border border-vscode-border text-vscode-muted hover:border-vscode-accent hover:text-vscode-accent transition-colors"
-            title="Export as 256×1 PNG to Downloads"
-          >
-            Export PNG
-          </button>
+          <div className="ml-auto flex items-center gap-1.5">
+            <button
+              onClick={() => void handleExport()}
+              className="text-[10px] px-2 py-1 rounded border border-vscode-border text-vscode-muted hover:border-vscode-accent hover:text-vscode-accent transition-colors"
+              title="Export as 512×1 PNG to Downloads"
+            >
+              Export PNG
+            </button>
+            <button
+              onClick={() => void handleExportMd()}
+              className="text-[10px] px-2 py-1 rounded border border-vscode-border text-vscode-muted hover:border-vscode-accent hover:text-vscode-accent transition-colors"
+              title="Export color table as Markdown"
+            >
+              Export MD
+            </button>
+          </div>
         </div>
       </div>
 

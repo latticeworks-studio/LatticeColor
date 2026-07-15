@@ -81,12 +81,34 @@ fn save_palette_png(app: AppHandle, base64_data: String, name: String) -> Result
     Ok(path.to_string_lossy().into_owned())
 }
 
+#[tauri::command]
+fn reveal_in_explorer(path: String) -> Result<(), String> {
+    std::process::Command::new("explorer")
+        .arg(format!("/select,{}", path))
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn save_palette_md(app: AppHandle, content: String, name: String) -> Result<String, String> {
+    let safe: String = name
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect();
+    let filename = format!("{}.md", if safe.is_empty() { "palette".to_string() } else { safe });
+    let dir = app.path().download_dir().map_err(|e| e.to_string())?;
+    let path = dir.join(&filename);
+    std::fs::write(&path, content.as_bytes()).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 // ── App setup ─────────────────────────────────────────────────────────────────
 
 pub fn run() {
     tauri::Builder::default()
         .manage(ScreenData(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![capture_screen, open_url, save_palette_png])
+        .invoke_handler(tauri::generate_handler![capture_screen, open_url, save_palette_png, save_palette_md, reveal_in_explorer])
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {

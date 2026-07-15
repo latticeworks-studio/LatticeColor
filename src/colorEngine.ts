@@ -279,7 +279,7 @@ export function applyVariant(baseHex: string, variant: VariantType): string[] {
 
 // ── Restricted palette (Palette Creator) ─────────────────────────────────────
 
-export type PaletteSize = 16 | 32 | 64 | 128 | 256;
+export type PaletteSize = 16 | 32 | 64 | 128 | 256 | 512;
 
 // Full hue sweep: N colours cycling through all 360° of hue, each at the root's
 // saturation and lightness. The palette covers the entire colour range but
@@ -291,4 +291,58 @@ export function generateRestrictedPalette(rootHex: string, count: PaletteSize): 
     const h = Math.round((rootH + (i / count) * 360) % 360);
     return rgbToHex(hslToRgb({ h, s: rootS, l: rootL }));
   });
+}
+
+// ── Median-cut colour quantization (Area Eyedropper) ─────────────────────────
+
+type RGB3 = [number, number, number];
+
+function splitLargestBox(boxes: RGB3[][]): void {
+  let best = 0, bestRange = -1;
+  for (let i = 0; i < boxes.length; i++) {
+    if (boxes[i].length <= 1) continue;
+    let rLo = 255, rHi = 0, gLo = 255, gHi = 0, bLo = 255, bHi = 0;
+    for (const [r, g, b] of boxes[i]) {
+      if (r < rLo) rLo = r; if (r > rHi) rHi = r;
+      if (g < gLo) gLo = g; if (g > gHi) gHi = g;
+      if (b < bLo) bLo = b; if (b > bHi) bHi = b;
+    }
+    const range = (rHi - rLo) + (gHi - gLo) + (bHi - bLo);
+    if (range > bestRange) { bestRange = range; best = i; }
+  }
+  const box = boxes[best];
+  let rLo = 255, rHi = 0, gLo = 255, gHi = 0, bLo = 255, bHi = 0;
+  for (const [r, g, b] of box) {
+    if (r < rLo) rLo = r; if (r > rHi) rHi = r;
+    if (g < gLo) gLo = g; if (g > gHi) gHi = g;
+    if (b < bLo) bLo = b; if (b > bHi) bHi = b;
+  }
+  const rR = rHi - rLo, gR = gHi - gLo, bR = bHi - bLo;
+  const ch: 0 | 1 | 2 = gR >= rR && gR >= bR ? 1 : bR >= rR ? 2 : 0;
+  box.sort((a, b) => a[ch] - b[ch]);
+  const mid = box.length >> 1;
+  boxes.splice(best, 1, box.slice(0, mid), box.slice(mid));
+}
+
+export function quantizeColors(imageData: ImageData, count: PaletteSize): string[] {
+  const { data, width, height } = imageData;
+  const total = width * height;
+  if (total === 0) return [];
+  const step = Math.max(1, Math.ceil(total / 40000));
+  const pixels: RGB3[] = [];
+  for (let i = 0; i < total; i += step) {
+    const o = i * 4;
+    pixels.push([data[o], data[o + 1], data[o + 2]]);
+  }
+  const boxes: RGB3[][] = [pixels];
+  while (boxes.length < count && boxes.some((b) => b.length > 1)) {
+    splitLargestBox(boxes);
+  }
+  const result = boxes.map((box) => {
+    let r = 0, g = 0, b = 0;
+    for (const c of box) { r += c[0]; g += c[1]; b += c[2]; }
+    const n = box.length;
+    return rgbToHex({ r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) });
+  });
+  return result.sort((a, b) => rgbToHsl(hexToRgb(a)).h - rgbToHsl(hexToRgb(b)).h);
 }

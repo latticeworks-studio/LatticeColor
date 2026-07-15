@@ -17,6 +17,7 @@ interface PaletteState {
   name: string;
   editId: string | null;
   saved: SavedPalette[];
+  isSampled: boolean;
   setColors: (colors: string[]) => void;
   setColor: (index: number, hex: string) => void;
   setSize: (size: PaletteSize) => void;
@@ -24,7 +25,7 @@ interface PaletteState {
   saveCurrentPalette: () => Promise<void>;
   deleteSavedPalette: (id: string) => Promise<void>;
   loadSavedPalette: (id: string) => void;
-  newPalette: (colors: string[], size: PaletteSize) => void;
+  newPalette: (colors: string[], size: PaletteSize, sampled?: boolean) => void;
   hydratePalettes: () => Promise<void>;
 }
 
@@ -40,6 +41,7 @@ export const usePaletteStore = create<PaletteState>((set, get) => ({
   name: "New Palette",
   editId: null,
   saved: [],
+  isSampled: false,
 
   hydratePalettes: async () => {
     const s = await getDiskStore();
@@ -58,8 +60,8 @@ export const usePaletteStore = create<PaletteState>((set, get) => ({
   setSize: (size) => set({ size }),
   setName: (name) => set({ name }),
 
-  newPalette: (colors, size) =>
-    set({ colors, size, name: "New Palette", editId: null }),
+  newPalette: (colors, size, sampled = false) =>
+    set({ colors, size, name: "New Palette", editId: null, isSampled: sampled }),
 
   saveCurrentPalette: async () => {
     const { colors, size, name, editId, saved } = get();
@@ -68,14 +70,14 @@ export const usePaletteStore = create<PaletteState>((set, get) => ({
     const updated = editId
       ? saved.map((p) => (p.id === editId ? palette : p))
       : [...saved, palette];
-    set({ saved: updated, editId: id });
+    set({ saved: updated, editId: id, isSampled: false });
     await persistPalettes(updated);
   },
 
   loadSavedPalette: (id) => {
     const found = get().saved.find((p) => p.id === id);
     if (found)
-      set({ colors: found.colors, size: found.size, name: found.name, editId: found.id });
+      set({ colors: found.colors, size: found.size, name: found.name, editId: found.id, isSampled: false });
   },
 
   deleteSavedPalette: async (id) => {

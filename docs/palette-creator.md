@@ -19,6 +19,7 @@ Choose how many colours the palette contains using the size buttons in the toolb
 | **64** | 8 × 8 |
 | **128** | 16 × 8 |
 | **256** | 16 × 16 |
+| **512** | 32 × 16 |
 
 Switching size regenerates the palette from the current root colour.
 
@@ -35,6 +36,16 @@ Generation sweeps the full 360° hue wheel at the root colour's saturation and l
 - The sweep starts at the root's own hue, so the first swatch always matches what you picked.
 
 To change the character of the palette, pick a different colour with the eyedropper or colour picker, then hit Regen.
+
+---
+
+## Area Eyedropper Palettes
+
+You can generate a palette directly from a region of your screen using the **Area Eyedropper** (see [Eyedropper](eyedropper.md) for how to activate it). The colours are extracted using a median-cut algorithm that finds the most representative colours in the selected area.
+
+When a palette is created this way, the **size buttons and ↺ Regen are disabled** until you save the palette. This prevents accidentally overwriting the sampled colours before you've had a chance to keep them.
+
+Once you click **Save**, all controls unlock as normal.
 
 ---
 
@@ -66,10 +77,29 @@ Palettes persist across restarts.
 
 ## Exporting as PNG
 
-Click **Export PNG** to write a `256×1` pixel PNG to your **Downloads** folder.
+Click **Export PNG** to write a `512×1` pixel PNG to your **Downloads** folder.
 
 - Slots are filled left-to-right with the palette colours.
-- Any unused slots (e.g. a 64-colour palette leaves 192 empty slots) are filled with `#C3C3C3`.
+- Any unused slots (e.g. a 64-colour palette leaves 448 empty slots) are filled with `#C3C3C3`.
 - The filename is derived from the palette name (spaces and special characters replaced with underscores).
 
-This format is directly compatible with **Magica Voxel** and other tools that use a 256-entry indexed colour palette.
+This format is directly compatible with **Magica Voxel** and other tools that use an indexed colour palette.
+
+---
+
+## Exporting as Markdown
+
+Click **Export MD** to write a `.md` file to your **Downloads** folder containing a formatted colour table:
+
+| Swatch | Hex | RGB |
+|--------|-----|-----|
+| (colour block) | `#C4897E` | `rgb(196, 137, 126)` |
+| … | … | … |
+
+Each row includes a rendered colour swatch, the hex code, and the RGB values. The table renders correctly in GitHub, VS Code's Markdown Preview, Obsidian, and most other Markdown viewers.
+
+---
+
+## Export Notifications
+
+After a successful export a notification bar appears at the bottom of the panel. **Click it** to open the file's location in Windows Explorer with the file selected. The notification disappears after three seconds.
