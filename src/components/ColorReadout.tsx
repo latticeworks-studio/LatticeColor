@@ -42,7 +42,7 @@ function ReadoutRow({ label, value, copyValue }: { label: string; value: string;
 
 export default function ColorReadout({ hex }: Props) {
   const { open } = useSwatchMenu();
-  const { setPickedColor } = useColorStore();
+  const { setPickedColor, previewColor } = useColorStore();
   const [pickerOpen, setPickerOpen] = useState(false);
   const swatchRef = useRef<HTMLDivElement>(null);
 
@@ -91,6 +91,7 @@ export default function ColorReadout({ hex }: Props) {
           hex={hex}
           anchorEl={swatchRef.current}
           onChange={setPickedColor}
+          onPreview={previewColor}
           onClose={() => setPickerOpen(false)}
         />
       )}

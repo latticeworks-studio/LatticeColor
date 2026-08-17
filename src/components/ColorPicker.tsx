@@ -40,11 +40,15 @@ const HH = 12;
 interface Props {
   hex: string;
   anchorEl: HTMLElement;
+  /** Called once a color is committed (drag released, hex typed). Safe to record into history. */
   onChange: (hex: string) => void;
+  /** Called continuously while dragging, for live visual feedback only. Defaults to onChange. */
+  onPreview?: (hex: string) => void;
   onClose: () => void;
 }
 
-export default function ColorPicker({ hex, anchorEl, onChange, onClose }: Props) {
+export default function ColorPicker({ hex, anchorEl, onChange, onPreview, onClose }: Props) {
+  const preview = onPreview ?? onChange;
   const [hue, setHue] = useState(0);
   const [sat, setSat] = useState(100);
   const [val, setVal] = useState(100);
@@ -66,8 +70,8 @@ export default function ColorPicker({ hex, anchorEl, onChange, onClose }: Props)
     const out = hsvToHex(h, s, v);
     lastEmitted.current = out;
     setHexInput(out.replace("#", ""));
-    onChange(out);
-  }, [onChange]);
+    preview(out);
+  }, [preview]);
 
   // Draw saturation/value gradient
   useEffect(() => {
@@ -109,6 +113,7 @@ export default function ColorPicker({ hex, anchorEl, onChange, onClose }: Props)
     const up = () => {
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
+      onChange(lastEmitted.current);
     };
     onMove(e.clientX, e.clientY);
     window.addEventListener("mousemove", move);
@@ -233,10 +238,9 @@ export default function ColorPicker({ hex, anchorEl, onChange, onClose }: Props)
           <input
             className="flex-1 min-w-0 bg-transparent text-vscode-text text-xs font-mono caret-vscode-accent focus:outline-none"
             value={hexInput}
-            onChange={(e) => setHexInput(e.target.value.toUpperCase().replace(/[^0-9A-F]/g, ""))}
+            onChange={(e) => setHexInput(e.target.value.toUpperCase().replace(/[^0-9A-F]/g, "").slice(0, 6))}
             onBlur={(e) => commitHex(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") commitHex((e.target as HTMLInputElement).value); }}
-            maxLength={6}
             spellCheck={false}
           />
         </div>

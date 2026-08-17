@@ -17,7 +17,11 @@ async function persist(pickedColor: string, history: string[]) {
 interface ColorState {
   pickedColor: string;
   history: string[];
+  /** The last color actually committed to history (ignores in-progress drag previews). */
+  lastCommitted: string;
   setPickedColor: (hex: string) => void;
+  /** Live-updates the displayed color without touching history — for in-progress drags. */
+  previewColor: (hex: string) => void;
   setFromHistory: (hex: string) => void;
   hydrate: () => Promise<void>;
 }
@@ -25,27 +29,35 @@ interface ColorState {
 export const useColorStore = create<ColorState>((set, get) => ({
   pickedColor: "#C4897E",
   history: [],
+  lastCommitted: "#C4897E",
 
   hydrate: async () => {
     const s = await getDiskStore();
     const history = (await s.get<string[]>("history")) ?? [];
     const pickedColor = (await s.get<string>("pickedColor")) ?? "#C4897E";
-    set({ history, pickedColor });
+    set({ history, pickedColor, lastCommitted: pickedColor });
   },
 
   setPickedColor: (hex) => {
-    const { pickedColor, history } = get();
+    const { history, lastCommitted } = get();
     const normalized = hex.toUpperCase();
-    if (normalized === pickedColor) return;
-    const newHistory = [pickedColor, ...history.filter((h) => h !== pickedColor)].slice(0, 10);
-    set({ pickedColor: normalized, history: newHistory });
+    if (normalized === lastCommitted) {
+      set({ pickedColor: normalized });
+      return;
+    }
+    const newHistory = [lastCommitted, ...history.filter((h) => h !== lastCommitted)].slice(0, 10);
+    set({ pickedColor: normalized, history: newHistory, lastCommitted: normalized });
     void persist(normalized, newHistory);
   },
 
+  previewColor: (hex) => {
+    set({ pickedColor: hex.toUpperCase() });
+  },
+
   setFromHistory: (hex) => {
-    const { history, pickedColor } = get();
-    const newHistory = [pickedColor, ...history.filter((h) => h !== hex)].slice(0, 10);
-    set({ pickedColor: hex, history: newHistory });
+    const { history, lastCommitted } = get();
+    const newHistory = [lastCommitted, ...history.filter((h) => h !== hex)].slice(0, 10);
+    set({ pickedColor: hex, history: newHistory, lastCommitted: hex });
     void persist(hex, newHistory);
   },
 }));
